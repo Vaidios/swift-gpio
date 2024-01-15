@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:swift-gpio}",
+            "name": "Debug gpiodetect",
+            "program": "${workspaceFolder:swift-gpio}/.build/debug/gpiodetect",
+            "preLaunchTask": "swift: Build Debug gpiodetect"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:swift-gpio}",
+            "name": "Release gpiodetect",
+            "program": "${workspaceFolder:swift-gpio}/.build/release/gpiodetect",
+            "preLaunchTask": "swift: Build Release gpiodetect"
+        }
+    ]
+}

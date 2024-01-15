@@ -3,17 +3,14 @@ import SystemPackage
 import CGPIO
 import Glibc
 
-struct Chip {
-    let fd: Int
-    let path: String
-}
-
 public struct GPIO {
 
     public static func run() {
         let gpio = GPIO()
 
-        try? gpio.allChipPaths()
+        let paths = try? GPIO.allChipPaths()
+        print(paths ?? [])
+        
         // gpio.gpiodInfoEventRead(fileDescriptor: )
         
         // SystemPackage.FileDescriptor
@@ -28,7 +25,8 @@ public struct GPIO {
 
     // }
 
-    func allChipPaths() throws -> [String] {
+    public static func allChipPaths() throws -> [String] {
+        let gpio = GPIO()
         let fileManager = FileManager.default
         let devDirectory = "/dev/"
         
@@ -39,7 +37,7 @@ public struct GPIO {
         var paths: [String] = []
 
         for case let path as String in directoryEnumerator {
-            if chipDirFilter(path: path) {
+            if gpio.chipDirFilter(path: path) {
                 paths.append(devDirectory + path)
             }
         }
@@ -64,14 +62,18 @@ public struct GPIO {
         return isGpioChipDevice
     }
 
-    private func checkIfGpioChipDevice(path: String) -> Bool {
-        return gpiodCheckGpiochipDevice(path: path, setErrno: false)
+    func checkIfGpioChipDevice(path: String) -> Bool {
+        do {
+            let isSubsystem = try gpiodCheckGpiochipDevice(path: path)
+            return isSubsystem
+        } catch {
+            return false
+        }
     }
 
-    func gpiodCheckGpiochipDevice(path: String, setErrno: Bool) -> Bool {
-        guard !path.isEmpty else {
-            if setErrno { errno = EINVAL }
-            return false
+    func gpiodCheckGpiochipDevice(path: String) throws -> Bool {
+        if path.isEmpty {
+            throw GPIOError.emptyPath
         }
 
         var isLink: ObjCBool = false
@@ -86,15 +88,12 @@ public struct GPIO {
         guard let deviceAttributes = try? FileManager.default.attributesOfItem(atPath: realPath),
             let deviceType = deviceAttributes[.type] as? FileAttributeType,
             deviceType == .typeCharacterSpecial else {
-            if setErrno { errno = ENOTTY }
             return false
         }
 
         // Verify if the device is associated with the GPIO subsystem
         // This step is system-specific and might require additional system-level calls or bridges
         let isGpioSubsystem = checkIfGpioSubsystem(devicePath: realPath)
-
-        if setErrno && !isGpioSubsystem { errno = ENODEV }
         return isGpioSubsystem
     }
 
@@ -124,10 +123,6 @@ public struct GPIO {
         guard sysfspString == "/sys/bus/gpio" else {
             return false
         }
-        print("Found GPIO device!")
-        print(devicePath)
-        print(createDevicePath)
-        print(sysfspString)
         
         // print(devicePath)
         // Implement the logic to check if the device is part of the GPIO subsystem.
@@ -154,12 +149,4 @@ public func realpath(_ path: String) throws -> String {
     defer { free(rv) }
     let rvv = String(cString: rv)
     return rvv
-}
-
-func major(_ x: dev_t) -> UInt {
-    return (x >> 24) & 0xff
-}
-
-func minor(_ x: dev_t) -> UInt {
-    return x & 0xffffff
 }

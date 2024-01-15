@@ -11,8 +11,10 @@
 #ifndef _UAPI_GPIO_H_
 #define _UAPI_GPIO_H_
 
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/sysmacros.h>
+#include <sys/ioctl.h>
 #include <linux/const.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
@@ -508,12 +510,18 @@ struct gpioevent_data {
  * v1 and v2 ioctl()s
  */
 #define GPIO_GET_CHIPINFO_IOCTL _IOR(0xB4, 0x01, struct gpiochip_info)
+static inline int gpio_get_chip_info_ioctl(int fd,struct gpiochip_info *info) { return ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, info); }
+static const char *gpiod_chip_info_get_name(struct gpiochip_info *info) {  assert(info);return info->name; }
+static const char *gpiod_chip_info_get_label(struct gpiochip_info *info) { assert(info);return info->label; }
 #define GPIO_GET_LINEINFO_UNWATCH_IOCTL _IOWR(0xB4, 0x0C, __u32)
 
 /*
  * v2 ioctl()s
  */
 #define GPIO_V2_GET_LINEINFO_IOCTL _IOWR(0xB4, 0x05, struct gpio_v2_line_info)
+static inline int gpiod_chip_get_line_info_ioctl(int fd,struct gpio_v2_line_info *info) { return ioctl(fd, GPIO_V2_GET_LINEINFO_IOCTL, info); }
+static const char *gpiod_line_info_get_name(struct gpio_v2_line_info *info) {  assert(info);return info->name; }
+static const char *gpiod_line_info_get_consumer(struct gpio_v2_line_info *info) {  assert(info);return info->consumer; }
 #define GPIO_V2_GET_LINEINFO_WATCH_IOCTL _IOWR(0xB4, 0x06, struct gpio_v2_line_info)
 #define GPIO_V2_GET_LINE_IOCTL _IOWR(0xB4, 0x07, struct gpio_v2_line_request)
 #define GPIO_V2_LINE_SET_CONFIG_IOCTL _IOWR(0xB4, 0x0D, struct gpio_v2_line_config)
