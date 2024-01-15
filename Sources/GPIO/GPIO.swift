@@ -1,7 +1,11 @@
-import Foundation
-import SystemPackage
+
+#if os(Linux)
 import CGPIO
 import Glibc
+#endif
+
+import Foundation
+import SystemPackage
 
 public struct GPIO {
 

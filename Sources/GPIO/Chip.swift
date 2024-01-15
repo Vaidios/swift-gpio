@@ -1,5 +1,7 @@
+#if os(Linux)
 import CGPIO
 import Glibc
+#endif
 import SystemPackage
 
 public final class Chip {
