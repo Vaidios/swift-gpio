@@ -1,3 +1,1 @@
-final class Line {
-    
-}
+public enum Line { }

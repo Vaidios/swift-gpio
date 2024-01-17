@@ -23,6 +23,30 @@
             "name": "Release gpiodetect",
             "program": "${workspaceFolder:swift-gpio}/.build/release/gpiodetect",
             "preLaunchTask": "swift: Build Release gpiodetect"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:swift-gpio}",
+            "name": "Debug gpioget",
+            "program": "${workspaceFolder:swift-gpio}/.build/debug/gpioget",
+            "preLaunchTask": "swift: Build Debug gpioget"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "args": [],
+            "cwd": "${workspaceFolder:swift-gpio}",
+            "name": "Release gpioget",
+            "program": "${workspaceFolder:swift-gpio}/.build/release/gpioget",
+            "preLaunchTask": "swift: Build Release gpioget"
         }
     ]
 }

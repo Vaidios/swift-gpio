@@ -23,6 +23,13 @@ let package = Package(
             ]
         ),
 
+        .executableTarget(
+            name: "gpioget",
+            dependencies: [
+                "GPIO"
+            ]
+        ),
+
         .target(
             name: "GPIO",
             dependencies: [

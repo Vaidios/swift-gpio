@@ -100,6 +100,73 @@ public final class Chip {
             offset: info.offset,
             numberOfAttributes: info.num_attrs
         )
-    } 
+    }
+
+    public func requestLines(lineBulkConfiguration: Line.BulkConfiguration, requestConfiguration: RequestConfiguration) {
+        var request: gpio_v2_line_request = .init()
+        request.event_buffer_size = 0
+
+        requestConfiguration.toUAPI(request: &request)
+        lineBulkConfiguration.toUAPI(request: &request)
+
+//         static void set_offsets(struct gpiod_line_config *config,
+// 			struct gpio_v2_line_request *uapi_cfg)
+// {
+// 	size_t i;
+
+// 	uapi_cfg->num_lines = config->num_configs;
+
+// 	for (i = 0; i < config->num_configs; i++)
+// 		uapi_cfg->offsets[i] = config->line_configs[i].offset;
+// }
+
+//         int gpiod_line_config_to_uapi(struct gpiod_line_config *config,
+// 			      struct gpio_v2_line_request *uapi_cfg)
+// {
+// 	unsigned int attr_idx = 0;
+// 	int ret;
+
+// 	set_offsets(config, uapi_cfg);
+// 	set_output_values(config, uapi_cfg, &attr_idx);
+
+// 	ret = set_debounce_periods(config, &uapi_cfg->config, &attr_idx);
+// 	if (ret)
+// 		return -1;
+
+// 	ret = set_flags(config, &uapi_cfg->config, &attr_idx);
+// 	if (ret)
+// 		return -1;
+
+// 	uapi_cfg->config.num_attrs = attr_idx;
+
+// 	return 0;
+// }
+    }
 }
 
+extension Line.BulkConfiguration {
+
+    private func setOffsets(request: inout gpio_v2_line_request) {
+        request.num_lines = UInt32(self.configs.count)
+        for (index, lineConfig) in self.configs.enumerated() {
+            gpio_v2_line_request_set_offset(&request, index, lineConfig.offset)
+        }
+    }
+
+    private func setOutputValues(request: inout gpio_v2_line_request, attributeIndex: inout UInt32) {
+        var attribute: gpio_v2_line_config_attribute = .init()
+
+        attribute = gpio_v2_line_request_get_attribute(&request, &attributeIndex)
+        attribute.attr.id = GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES.rawValue
+        attribute.attr.values = 0
+        attribute.mask = 0
+    }
+
+    func toUAPI(request: inout gpio_v2_line_request) {
+        var attributeIndex: UInt32 = 0
+        setOffsets(request: &request)
+        setOutputValues(request: &request, attributeIndex: &attributeIndex)
+    }
+
+
+}

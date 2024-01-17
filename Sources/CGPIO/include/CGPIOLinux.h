@@ -12,6 +12,8 @@
 #define _UAPI_GPIO_H_
 
 #include <assert.h>
+#include <string.h>
+#include <stddef.h>
 #include <sys/types.h>
 #include <sys/sysmacros.h>
 #include <sys/ioctl.h>
@@ -210,6 +212,10 @@ struct gpio_v2_line_request {
 	__u32 padding[5];
 	__s32 fd;
 };
+
+static inline void gpio_v2_line_request_set_consumer(struct gpio_v2_line_request *request, char *consumer) { strcpy(request->consumer, consumer); }
+static inline void gpio_v2_line_request_set_offset(struct gpio_v2_line_request *request, size_t i, __u32 value) { request->offsets[i] = value; }
+static inline struct gpio_v2_line_config_attribute gpio_v2_line_request_get_attribute(struct gpio_v2_line_request *request, unsigned int *attr_idx) { return request->config.attrs[(*attr_idx)++]; }
 
 /**
  * struct gpio_v2_line_info - Information about a certain GPIO line
@@ -526,6 +532,7 @@ static const char *gpiod_line_info_get_consumer(struct gpio_v2_line_info *info) 
 #define GPIO_V2_GET_LINE_IOCTL _IOWR(0xB4, 0x07, struct gpio_v2_line_request)
 #define GPIO_V2_LINE_SET_CONFIG_IOCTL _IOWR(0xB4, 0x0D, struct gpio_v2_line_config)
 #define GPIO_V2_LINE_GET_VALUES_IOCTL _IOWR(0xB4, 0x0E, struct gpio_v2_line_values)
+static inline int gpio_line_get_values_ioctl(int fd,struct gpio_v2_line_values *info) { return ioctl(fd, GPIO_V2_GET_LINEINFO_IOCTL, info); }
 #define GPIO_V2_LINE_SET_VALUES_IOCTL _IOWR(0xB4, 0x0F, struct gpio_v2_line_values)
 
 /*
