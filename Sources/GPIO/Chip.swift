@@ -2,6 +2,7 @@
 import CGPIO
 import Glibc
 #endif
+import Foundation
 import SystemPackage
 
 public final class Chip {
@@ -61,16 +62,6 @@ public final class Chip {
         )
     }
 
-// struct gpio_v2_line_info {
-// 	char name[GPIO_MAX_NAME_SIZE];
-// 	char consumer[GPIO_MAX_NAME_SIZE];
-// 	__u32 offset;
-// 	__u32 num_attrs;
-// 	__aligned_u64 flags;
-// 	struct gpio_v2_line_attribute attrs[GPIO_V2_LINE_NUM_ATTRS_MAX];
-// 	/* Space reserved for future use. */
-// 	__u32 padding[4];
-// };
     public struct LineInfo {
         public let name: String
         public let consumer: String
@@ -84,15 +75,35 @@ public final class Chip {
 
         info.offset = offset
 
-        gpiod_chip_get_line_info_ioctl(fileDescriptor.rawValue, &info)
-
-        guard let cName = gpiod_line_info_get_name(&info),
-        let cConsumer = gpiod_line_info_get_consumer(&info) else {
+        let ret = gpiod_chip_get_line_info_ioctl(fileDescriptor.rawValue, &info)
+        if ret != 0 {
+            let errsv = errno
+            // Handling the error
+            if let errorMessage = String(validatingUTF8: strerror(errsv)) {
+                print("ioctl failed: \(errorMessage)")
+            }
             fatalError()
         }
 
+        guard let cName = gpiod_line_info_get_name(&info) else {
+            fatalError()
+        }
+
+        let encoding: String.Encoding = .ascii
+        var consumer: String = ""
+        if let cConsumer = gpiod_line_info_get_consumer(&info) {
+            var index = 0
+            while cConsumer[index] != 0 {
+                let char = cConsumer[index]
+                // print("Character: \(char) ASCII Value: \(Int(char))")
+                index += 1
+            }
+            consumer = String(cString: cConsumer, encoding: encoding) ?? "Encoding failure \(encoding)"
+        }
+
         let name = String(cString: cName)
-        let consumer = String(cString: cConsumer)
+        
+        
 
         return LineInfo(
             name: name,
@@ -102,45 +113,41 @@ public final class Chip {
         )
     }
 
-    public func requestLines(lineBulkConfiguration: Line.BulkConfiguration, requestConfiguration: RequestConfiguration) {
+    public func requestLines(lineBulkConfiguration: Line.BulkConfiguration, requestConfiguration: RequestConfiguration) -> Line.Request? {
         var request: gpio_v2_line_request = .init()
         request.event_buffer_size = 0
 
         requestConfiguration.toUAPI(request: &request)
         lineBulkConfiguration.toUAPI(request: &request)
 
-//         static void set_offsets(struct gpiod_line_config *config,
-// 			struct gpio_v2_line_request *uapi_cfg)
-// {
-// 	size_t i;
+        let chipInfo = self.info()
 
-// 	uapi_cfg->num_lines = config->num_configs;
+        let ret = gpio_v2_get_line_ioctl(fileDescriptor.rawValue, &request)
 
-// 	for (i = 0; i < config->num_configs; i++)
-// 		uapi_cfg->offsets[i] = config->line_configs[i].offset;
-// }
+        return Line.Request.fromUAPI(request: &request, chipName: chipInfo.name)
+    }
+}
 
-//         int gpiod_line_config_to_uapi(struct gpiod_line_config *config,
-// 			      struct gpio_v2_line_request *uapi_cfg)
-// {
-// 	unsigned int attr_idx = 0;
-// 	int ret;
+extension Line.Request {
 
-// 	set_offsets(config, uapi_cfg);
-// 	set_output_values(config, uapi_cfg, &attr_idx);
+    static func fromUAPI(request: inout gpio_v2_line_request, chipName: String) -> Self? {
+        let numLines = Int(request.num_lines)
+        
+        // Ensure the chip name is not empty
+        guard !chipName.isEmpty else { return nil }
 
-// 	ret = set_debounce_periods(config, &uapi_cfg->config, &attr_idx);
-// 	if (ret)
-// 		return -1;
+        var offsets = [UInt32]()
+        // Assuming gpio_v2_line_request.offsets is an array of integers
+        for i in 0..<numLines {
+            offsets.append(gpio_v2_line_request_get_offset(&request, UInt32(i)))
+        }
 
-// 	ret = set_flags(config, &uapi_cfg->config, &attr_idx);
-// 	if (ret)
-// 		return -1;
-
-// 	uapi_cfg->config.num_attrs = attr_idx;
-
-// 	return 0;
-// }
+        return Self(
+            chipName: chipName,
+            fileDescriptor: FileDescriptor(rawValue: request.fd),
+            numLines: numLines,
+            offsets: offsets
+        )
     }
 }
 
@@ -162,11 +169,59 @@ extension Line.BulkConfiguration {
         attribute.mask = 0
     }
 
+    func setDebounceValues(request: inout gpio_v2_line_request, attributeIndex: inout UInt32) {
+        var attribute: gpio_v2_line_config_attribute = .init()
+        var done: UInt64 = 0
+        var mask: UInt64 = 0
+
+        attribute = gpio_v2_line_request_get_attribute(&request, &attributeIndex)
+
+        done = 0 // void gpiod_line_mask_zero(uint64_t *mask)
+
+        for (index, lineConfig) in self.configs.enumerated() {
+            if Line.maskTestBit(mask: &done, nr: UInt(index)) {
+                continue
+            }
+
+            Line.maskSetBit(mask: &done, nr: UInt(index))
+            mask = 0
+
+
+            let periodI = lineConfig.settings.debouncePeriod
+            if periodI == 0 {
+                continue
+            }
+
+            if attributeIndex == GPIO_V2_LINE_NUM_ATTRS_MAX {
+                fatalError("Attributes too long")
+            }
+
+            attribute = gpio_v2_line_request_get_attribute(&request, &attributeIndex)
+
+            attribute.attr.id = GPIO_V2_LINE_ATTR_ID_DEBOUNCE.rawValue
+            attribute.attr.debounce_period_us = periodI
+            Line.maskSetBit(mask: &mask, nr: UInt(index))
+
+            for (j, lineConfig) in self.configs.enumerated() {
+                let periodJ = lineConfig.settings.debouncePeriod
+                if periodI == periodJ {
+                    Line.maskSetBit(mask: &mask, nr: UInt(j))
+                    Line.maskSetBit(mask: &done, nr: UInt(j))
+                }
+            }
+
+            attribute.mask = mask
+        }
+    }
+
     func toUAPI(request: inout gpio_v2_line_request) {
         var attributeIndex: UInt32 = 0
         setOffsets(request: &request)
         setOutputValues(request: &request, attributeIndex: &attributeIndex)
+
+        setDebounceValues(request: &request, attributeIndex: &attributeIndex)
+
+        request.config.num_attrs = attributeIndex
+
     }
-
-
 }

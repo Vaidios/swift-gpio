@@ -8,7 +8,7 @@ extension Line {
         public let bias: Bias
         public let activeLow: Bool
         public let eventClock: EventClock
-        public let debouncePeriod: Double
+        public let debouncePeriod: UInt32
         public let outputValue: Value
 
         public init(
@@ -18,7 +18,7 @@ extension Line {
             bias: Bias,
             activeLow: Bool,
             eventClock: EventClock,
-            debouncePeriod: Double,
+            debouncePeriod: UInt32,
             outputValue: Value
         ) { 
             self.direction = direction

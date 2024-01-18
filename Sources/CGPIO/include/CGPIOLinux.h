@@ -216,6 +216,7 @@ struct gpio_v2_line_request {
 static inline void gpio_v2_line_request_set_consumer(struct gpio_v2_line_request *request, char *consumer) { strcpy(request->consumer, consumer); }
 static inline void gpio_v2_line_request_set_offset(struct gpio_v2_line_request *request, size_t i, __u32 value) { request->offsets[i] = value; }
 static inline struct gpio_v2_line_config_attribute gpio_v2_line_request_get_attribute(struct gpio_v2_line_request *request, unsigned int *attr_idx) { return request->config.attrs[(*attr_idx)++]; }
+static inline __u32 gpio_v2_line_request_get_offset(struct gpio_v2_line_request *request, unsigned int index) { return request->offsets[index]; }
 
 /**
  * struct gpio_v2_line_info - Information about a certain GPIO line
@@ -527,9 +528,10 @@ static const char *gpiod_chip_info_get_label(struct gpiochip_info *info) { asser
 #define GPIO_V2_GET_LINEINFO_IOCTL _IOWR(0xB4, 0x05, struct gpio_v2_line_info)
 static inline int gpiod_chip_get_line_info_ioctl(int fd,struct gpio_v2_line_info *info) { return ioctl(fd, GPIO_V2_GET_LINEINFO_IOCTL, info); }
 static const char *gpiod_line_info_get_name(struct gpio_v2_line_info *info) {  assert(info);return info->name; }
-static const char *gpiod_line_info_get_consumer(struct gpio_v2_line_info *info) {  assert(info);return info->consumer; }
+static const char *gpiod_line_info_get_consumer(struct gpio_v2_line_info *info) {  assert(info);return info->consumer[0] == '\0' ? NULL : info->consumer; }
 #define GPIO_V2_GET_LINEINFO_WATCH_IOCTL _IOWR(0xB4, 0x06, struct gpio_v2_line_info)
 #define GPIO_V2_GET_LINE_IOCTL _IOWR(0xB4, 0x07, struct gpio_v2_line_request)
+static inline int gpio_v2_get_line_ioctl(int fd,struct gpio_v2_line_request *request) { return ioctl(fd, GPIO_V2_GET_LINE_IOCTL, request); }
 #define GPIO_V2_LINE_SET_CONFIG_IOCTL _IOWR(0xB4, 0x0D, struct gpio_v2_line_config)
 #define GPIO_V2_LINE_GET_VALUES_IOCTL _IOWR(0xB4, 0x0E, struct gpio_v2_line_values)
 static inline int gpio_line_get_values_ioctl(int fd,struct gpio_v2_line_values *info) { return ioctl(fd, GPIO_V2_GET_LINEINFO_IOCTL, info); }

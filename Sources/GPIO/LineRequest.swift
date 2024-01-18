@@ -10,7 +10,8 @@ public struct RequestConfiguration {
     }
 
     func toUAPI(request: inout gpio_v2_line_request) {
-        var configConsumer = consumer.cString(using: .utf8)
+        var configConsumer = consumer.cString(using: .ascii)
+        print("Settings consumer \(configConsumer)")
         gpio_v2_line_request_set_consumer(&request, &configConsumer)
         request.event_buffer_size = self.eventBufferSize
     }
